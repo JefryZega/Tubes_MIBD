@@ -167,6 +167,38 @@ span {
   color: #333;
 }
 
+/* Dropdown logout (disembunyikan dulu) */
+.logout_dropdown {
+  display: none;
+  position: absolute;
+  right: 0;
+  top: 40px;
+  background-color: white;
+  padding: 10px;
+  border-radius: 10px;
+  box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
+  z-index: 100;
+}
+
+/* Tombol logout */
+.logout_btn {
+  background-color: #e63946;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.logout_btn:hover {
+  background-color: #b52f38;
+}
+
+/* Tampilkan dropdown saat hover */
+.profile_hover_container:hover .logout_dropdown {
+  display: block;
+}
+
 /* Grid video */
 .video_grid {
   display: grid;

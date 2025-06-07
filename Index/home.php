@@ -2,7 +2,31 @@
 session_start();
 require_once 'koneksiDB.php';
 
-// Fetch videos with their view counts
+// Ensure consistent session variable naming
+$userId = isset($_SESSION['userId']) ? $_SESSION['userId'] : (isset($_SESSION['uid']) ? $_SESSION['uid'] : null);
+
+// Redirect if not logged in
+if (!$userId) {
+    header("Location: ../Index/login.php");
+    exit();
+}
+
+// Store consistent session variable
+$_SESSION['userId'] = $userId;
+
+// Get user channels
+$sqlChannels = "SELECT chnlId, nama, pfp FROM Channel WHERE userId = ?";
+$paramsChannels = array($userId);
+$stmtChannels = sqlsrv_query($conn, $sqlChannels, $paramsChannels);
+
+$userChannels = [];
+if ($stmtChannels !== false) {
+    while ($row = sqlsrv_fetch_array($stmtChannels, SQLSRV_FETCH_ASSOC)) {
+        $userChannels[] = $row;
+    }
+}
+
+// Fetch videos with view counts
 $sql = "SELECT 
             v.videoId, 
             v.judul, 
@@ -153,6 +177,53 @@ while ($row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC)) {
                 padding: 10px;
             }
         }
+
+        /* Fixed dropdown positioning */
+        .profile_hover_container {
+            position: relative;
+            display: inline-block;
+        }
+        
+        .logout_dropdown {
+            display: none;
+            position: absolute;
+            right: 0;
+            top: 40px; /* Reduced distance from icon */
+            background: white;
+            min-width: 160px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            border-radius: 4px;
+            z-index: 100;
+            padding: 10px;
+        }
+        
+        .profile_hover_container:hover .logout_dropdown {
+            display: block;
+        }
+        
+        .logout_dropdown a {
+            display: block;
+            padding: 8px 12px;
+            color: #333;
+            text-decoration: none;
+            transition: background 0.2s;
+        }
+        
+        .logout_dropdown a:hover {
+            background: #f0f0f0;
+        }
+        
+        .switch_btn {
+            border-bottom: 1px solid #eee;
+        }
+        
+        .channel_pfp {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            margin-right: 15px;
+            object-fit: cover;
+        }
     </style>
 </head>
 <body>
@@ -172,10 +243,41 @@ while ($row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC)) {
 
             <ol>
                 <li>
-                    <a href="#"><i class="fas fa-home"></i>Home</a>
+                    <a href="home.php"><i class="fas fa-home"></i>Home</a>
+                </li>
+                <!-- TAMBAHAN 3 BUTTON -->
+                <li>
+                    <a href="subs.php"><i class="fas fa-star"></i>Subscription</a>
                 </li>
                 <li>
-                    <a href="../Index/addChannel.html"><i class="fas fa-users"></i>Add Channel</a>
+                    <a href="notification.php"><i class="fas fa-bell"></i>Notification</a>
+                </li>
+                <li>
+                    <a href="collaboration.php"><i class="fas fa-handshake"></i>Collaboration</a>
+                </li>
+                
+                <!-- CHANNEL USER - ONLY SHOW IF CHANNELS EXIST -->
+                <?php if (!empty($userChannels)): ?>
+                    <?php foreach ($userChannels as $channel): ?>
+                    <li>
+                        <a href="channelContent.php?chnlId=<?= $channel['chnlId'] ?>">
+                            <?php if (!empty($channel['pfp'])): ?>
+                                <img src="<?= htmlspecialchars($channel['pfp']) ?>" 
+                                     alt="Profile" 
+                                     class="channel_pfp"
+                                     onerror="this.src='default_pfp.jpg'">
+                            <?php else: ?>
+                                <i class="fas fa-user-circle"></i>
+                            <?php endif; ?>
+                            <?= htmlspecialchars($channel['nama']) ?>
+                        </a>
+                    </li>
+                    <?php endforeach; ?>
+                <?php endif; ?>
+                
+                <!-- ADD CHANNEL BUTTON -->
+                <li>
+                    <a href="addChannel.php"><i class="fas fa-users"></i>Add Channel</a>
                 </li>
             </ol>
         </div>
@@ -189,6 +291,7 @@ while ($row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC)) {
                     <i class="fas fa-user-circle account_icon"></i>
                     <!-- Kotak logout yang muncul saat hover -->
                     <div class="logout_dropdown">
+                        <a href="#" class="switch_btn">Switch Account</a>
                         <a href="../Index/login.php" class="logout_btn">Logout</a>
                     </div>
                 </div>
@@ -198,7 +301,7 @@ while ($row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC)) {
                 <?php if (count($videos) > 0): ?>
                     <?php foreach ($videos as $video): ?>
                         <div class="video_card">
-                            <a href="videoPlayer.php?videoId=<?= $video['videoId'] ?>">
+                            <a href="videoDetail.php?videoId=<?= $video['videoId'] ?>">
                                 <div class="thumbnail_container">
                                     <img 
                                         src="<?= htmlspecialchars($video['thumbnail']) ?>" 

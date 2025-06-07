@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Add Channel</title>
+    <link rel="stylesheet" href="../Styles/addChannel_styles.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.12.1/css/all.min.css" />
+  </head>
+  <body>
+    <!-- Checkbox untuk toggle menu -->
+    <input type="checkbox" id="check" />
+
+    <div class="container">
+      <!-- Sidebar Kiri -->
+      <div class="left_side">
+        <div class="menu-header">
+          <label for="check">
+            <span class="fas fa-times" id="times"></span>
+            <span class="fas fa-bars" id="bars"></span>
+          </label>
+          <div class="head">MeTube</div>
+        </div>
+
+        <ol>
+          <li>
+            <a href="../Index/home.html"><i class="fas fa-home"></i>Home</a>
+          </li>
+          <li>
+            <a href="#"><i class="fas fa-users"></i>Add Channel</a>
+          </li>
+        </ol>
+      </div>
+
+      <!-- Konten Kanan -->
+      <div class="right_side">
+        <h2 class="page_title">Create Your Channel</h2>
+
+        <div class="channel_form_box">
+          <label class="upload_label" for="bannerUpload">Upload Banner</label>
+          <input type="file" id="bannerUpload" accept="image/*" />
+
+          <label class="upload_label" for="profileUpload">Upload Profile Photo</label>
+          <input type="file" id="profileUpload" accept="image/*" />
+
+          <label class="channel_name_label" for="channelName">Channel Name</label>
+          <input type="text" id="channelName" placeholder="Enter channel name" />
+        </div>
+
+        <button type="button" class="create_btn" onclick="location.href='../Index/homeChannel.html'">Create</button>
+      </div>
+    </div>
+  </body>
+</html>

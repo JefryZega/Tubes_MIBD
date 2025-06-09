@@ -3,8 +3,8 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Add Channel</title>
-    <link rel="stylesheet" href="../Styles/addChannel_styles.css" />
+    <title>Invite Userl</title>
+    <link rel="stylesheet" href="../Styles/invite_user_styles.css" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.12.1/css/all.min.css" />
   </head>
   <body>
@@ -38,24 +38,23 @@
 
         <!-- Tab Menu -->
         <div class="tab_menu">
-          <button class="tab_btn active">Create Channel</button>
-          <button type="button" class="tab_btn" onclick="location.href='../Index/invite_user.html'">Invite User</button>
+          <button class="tab_btn" onclick="location.href='../Index/addChannel.html'">Create Channel</button>
+          <button type="button" class="tab_btn active">Invite User</button>
         </div>
 
-        <form id="channelForm" class="channel_form_box" enctype="multipart/form-data">
-          <label class="upload_label" for="bannerUpload">Upload Banner</label>
-          <input type="file" name="banner" id="bannerUpload" accept="image/*" required />
-
-          <label class="upload_label" for="profileUpload">Upload Profile Photo</label>
-          <input type="file" name="profile_photo" id="profileUpload" accept="image/*" required />
-
-          <label class="channel_name_label" for="channelName">Channel Name</label>
-          <input type="text" name="channel_name" id="channelName" placeholder="Enter channel name" required />
-
-          <label class="channel_description" for="channelDescription">Channel Description</label>
-          <input type="text" name="description" id="channelDescription" placeholder="Enter channel description" />
-
-          <button type="submit" class="create_btn">Create</button>
+        <form id="inviteForm">
+          <div class="form-group">
+            <label for="userEmail">User Email / Username</label>
+            <input type="text" id="userEmail" name="user" placeholder="e.g. johndoe@example.com" required />
+            <label for="userRole">Select Role</label>
+            <select id="userRole" name="role" required>
+              <option value="" disabled selected>Pilih role</option>
+              <option value="admin">Admin</option>
+              <option value="editor">Editor</option>
+              <option value="viewer">Viewer</option>
+            </select>
+          </div>
+          <button class="submit_btn" type="submit">Invite</button>
         </form>
       </div>
     </div>

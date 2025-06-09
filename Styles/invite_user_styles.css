@@ -124,6 +124,8 @@ span {
   display: flex;
   flex-direction: column;
   align-items: center;
+  border-radius: 12px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
 }
 
 .page_title {
@@ -161,66 +163,42 @@ span {
   color: white;
 }
 
-.channel_form_box {
-  background-color: #fff;
+.form-group {
+  margin-bottom: 18px;
+  margin-top: 20px;
   width: 100%;
-  max-width: 500px;
-  padding: 30px 40px;
+  padding: 30px 30px;
   border-radius: 12px;
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
-  display: flex;
-  flex-direction: column;
-  gap: 25px;
 }
 
-.upload_label,
-.channel_name_label,
-.channel_description {
-  font-weight: 600;
-  color: #555;
-  margin-bottom: 3px;
+label {
   display: block;
+  margin: 10px;
+  font-weight: bold;
 }
 
-input[type="file"] {
-  border: 2px dashed #ccc;
-  padding: 25px;
+input,
+select {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #ccc;
   border-radius: 8px;
-  cursor: pointer;
-  background-color: #fafafa;
+  font-size: 1rem;
 }
 
-input[type="file"]:hover {
-  border-color: #e63946;
-  background-color: #fff0f0;
-}
-
-input[type="text"] {
-  padding: 12px 15px;
-  font-size: 16px;
-  border-radius: 8px;
-  border: 1.5px solid #ccc;
-  outline: none;
-  transition: border-color 0.3s ease;
-}
-
-input[type="text"]:focus {
-  border-color: #e63946;
-}
-
-.create_btn {
-  margin-top: 10px;
-  padding: 15px 40px;
-  background-color: #e63946;
+.submit_btn {
+  width: 100%;
+  padding: 12px;
+  background-color: #4a90e2;
   color: white;
-  font-weight: 600;
+  font-weight: bold;
   border: none;
-  border-radius: 10px;
+  border-radius: 8px;
   cursor: pointer;
-  align-self: center;
-  transition: background-color 0.3s ease;
+  font-size: 1rem;
 }
 
-.create_btn:hover {
-  background-color: #ac3333;
+button:hover {
+  background-color: #357bd8;
 }

@@ -150,34 +150,8 @@ span {
 }
 
 
-/* Ikon akun */
-.account_icon {
-  position: absolute;
-  right: 0;
-  top: 50%;
-  transform: translateY(-50%);
-  font-size: 30px;
-  color: #e63946;
-  cursor: pointer;
-  transition: color 0.3s ease;
-  padding-right: 10px;
-}
-
 .account_icon:hover {
   color: #333;
-}
-
-/* Dropdown logout (disembunyikan dulu) */
-.logout_dropdown {
-  display: none;
-  position: absolute;
-  right: 0;
-  top: 40px;
-  background-color: white;
-  padding: 10px;
-  border-radius: 10px;
-  box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
-  z-index: 100;
 }
 
 /* Tombol logout */
@@ -192,11 +166,6 @@ span {
 
 .logout_btn:hover {
   background-color: #b52f38;
-}
-
-/* Tampilkan dropdown saat hover */
-.profile_hover_container:hover .logout_dropdown {
-  display: block;
 }
 
 /* Grid video */

@@ -127,38 +127,11 @@ span {
 }
 
 .page_title {
-  margin-bottom: 20px;
+  margin-bottom: 40px;
   font-size: 28px;
   font-weight: 600;
   text-align: center;
   color: #333;
-}
-
-/* Tab menu */
-.tab_menu {
-  display: flex;
-  justify-content: center;
-  gap: 10px;
-  margin-bottom: 10px;
-}
-
-.tab_btn {
-  padding: 10px 20px;
-  font-size: 16px;
-  background-color: #eee;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: background 0.3s ease;
-}
-
-.tab_btn:hover {
-  background-color: #ddd;
-}
-
-.tab_btn.active {
-  background-color: #e63946;
-  color: white;
 }
 
 .channel_form_box {
@@ -167,18 +140,17 @@ span {
   max-width: 500px;
   padding: 30px 40px;
   border-radius: 12px;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 15px rgba(0,0,0,0.1);
   display: flex;
   flex-direction: column;
   gap: 25px;
 }
 
 .upload_label,
-.channel_name_label,
-.channel_description {
+.channel_name_label {
   font-weight: 600;
   color: #555;
-  margin-bottom: 3px;
+  margin-bottom: 8px;
   display: block;
 }
 
@@ -209,7 +181,7 @@ input[type="text"]:focus {
 }
 
 .create_btn {
-  margin-top: 10px;
+  margin-top: 40px;
   padding: 15px 40px;
   background-color: #e63946;
   color: white;
@@ -224,3 +196,4 @@ input[type="text"]:focus {
 .create_btn:hover {
   background-color: #ac3333;
 }
+

@@ -77,6 +77,32 @@ html {
   margin-top: 50px;
 }
 
+.visitor_link button {
+  padding: 10px;
+  border: none;
+  background-color: #583343;
+  color: white;
+  font-weight: bold;
+  font-size: 20px;
+  border-radius: 20px;
+  cursor: pointer;
+  width: 300px;
+  margin-top: 50px;
+}
+
+.login_link button {
+  padding: 10px;
+  border: none;
+  background-color: #583343;
+  color: white;
+  font-weight: bold;
+  font-size: 20px;
+  border-radius: 20px;
+  cursor: pointer;
+  width: 300px;
+  margin-top: 50px;
+}
+
 /*Right side*/
 .right_side img {
   max-width: 100%;

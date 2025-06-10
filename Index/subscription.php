@@ -12,6 +12,9 @@ if (!$userId) {
     exit();
 }
 
+// Store consistent session variable
+$_SESSION['userId'] = $userId;
+
 
 // Get user channels
 $userChannels = [];
@@ -36,9 +39,7 @@ if($baId !== null){
         }
     }
 }
-
-
-// Fetch videos with view counts
+// Cari video subscription
 $sql = "SELECT 
             v.videoId, 
             v.judul, 
@@ -50,7 +51,7 @@ $sql = "SELECT
         FROM Video v
         JOIN Channel c ON v.chnlId = c.chnlId
         LEFT JOIN [View] vw ON v.videoId = vw.videoId
-        WHERE v.status = 'up'
+        WHERE v.status = 'up' AND v.chnlId IN (SELECT chnlId FROM Subscribe)
         GROUP BY v.videoId, v.judul, v.thumbnail, v.tglUpld, c.nama, c.chnlId
         ORDER BY v.tglUpld DESC";
 $stmt = sqlsrv_query($conn, $sql);
@@ -64,7 +65,6 @@ while ($row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC)) {
     $videos[] = $row;
 }
 ?>
-
 
 <!DOCTYPE html>
 <html lang="en">
@@ -272,7 +272,6 @@ while ($row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC)) {
                 <li>
                     <a href="home.php"><i class="fas fa-home"></i>Home</a>
                 </li>
-                <!-- TAMBAHAN 3 BUTTON -->
                 <?php if($baId === null):?>
                     <li>
                         <a href="subscription.php"><i class="fas fa-star"></i>Subscription</a>
@@ -284,7 +283,7 @@ while ($row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC)) {
                         <a href="collaboration.php"><i class="fas fa-handshake"></i>Collaboration</a>
                     </li>
                 <?php endif; ?>
-                                
+                
                 <!-- CHANNEL USER - ONLY SHOW IF CHANNELS EXIST -->
                 <?php foreach ($userChannels as $ch): ?>
                 <li>
@@ -345,6 +344,7 @@ while ($row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC)) {
                             </a>
                             <div class="video_info">
                                 <h3 class="video_title"><?= htmlspecialchars($video['judul']) ?></h3>
+                                <!-- CHANGED: Channel name is now a clickable link -->
                                 <div class="channel_name">
                                     <a href="profileFromViewer.php?chnlId=<?= $video['channel_id'] ?>">
                                         <?= htmlspecialchars($video['channel_name']) ?>
@@ -364,7 +364,7 @@ while ($row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC)) {
                         <div class="empty_icon">
                             <i class="fas fa-film"></i>
                         </div>
-                        <h2 class="empty_text">Tidak ada videos</h2>
+                        <h2 class="empty_text">Anda belum subscribe</h2>
                     </div>
                 <?php endif; ?>
             </div>

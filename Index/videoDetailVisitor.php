@@ -4,7 +4,6 @@ require_once 'koneksiDB.php';
 
 // Ensure consistent session variable naming
 $userId = $_SESSION['userId'];
-$baId = isset($_SESSION['baId'])? $_SESSION['baId']: null;
 
 // Redirect if not logged in
 if (!$userId) {
@@ -22,49 +21,28 @@ if (!isset($_GET['videoId'])) {
 }
 $videoId = $_GET['videoId'];
 
-// Get user channels
+// Get user channels (for sidebar)
+$sqlChannels = "SELECT chnlId, nama, pfp FROM Channel WHERE userId = ?";
+$paramsChannels = array($userId);
+$stmtChannels = sqlsrv_query($conn, $sqlChannels, $paramsChannels);
+
 $userChannels = [];
-if($baId !== null){
-    $sqlChannels = "SELECT chnlId, nama, pfp FROM Channel WHERE baId = ?";
-    $paramsChannels = array($baId);
-    $stmtChannels = sqlsrv_query($conn, $sqlChannels, $paramsChannels);
-
-    if ($stmtChannels !== false) {
-        while ($row = sqlsrv_fetch_array($stmtChannels, SQLSRV_FETCH_ASSOC)) {
-            $userChannels[] = $row;
-        }
-    }
-}else{
-    $sqlChannels = "SELECT chnlId, nama, pfp FROM Channel WHERE userId = ? AND tipe = 'personal'";
-    $paramsChannels = array($userId);
-    $stmtChannels = sqlsrv_query($conn, $sqlChannels, $paramsChannels);
-
-    if ($stmtChannels !== false) {
-        while ($row = sqlsrv_fetch_array($stmtChannels, SQLSRV_FETCH_ASSOC)) {
-            $userChannels[] = $row;
-        }
+if ($stmtChannels !== false) {
+    while ($row = sqlsrv_fetch_array($stmtChannels, SQLSRV_FETCH_ASSOC)) {
+        $userChannels[] = $row;
     }
 }
 
 // Record view if not already viewed
-$sqlCheckView = "SELECT COUNT(*) AS view_count FROM [View] WHERE userId = ? AND videoId = ?";
+$sqlCheckView = "SELECT 1 FROM [View] WHERE userId = ? AND videoId = ?";
 $paramsCheckView = array($userId, $videoId);
 $stmtCheckView = sqlsrv_query($conn, $sqlCheckView, $paramsCheckView);
 
-if ($stmtCheckView === false) {
-    die(print_r(sqlsrv_errors(), true));
-}
-
-$hasView = sqlsrv_fetch_array($stmtCheckView, SQLSRV_FETCH_ASSOC);
-if ($hasView['view_count'] == 0) {
-    $sqlInsertView = "INSERT INTO [View] (userId, videoId, tglView, waktuView)
-                      VALUES (?, ?, CAST(GETDATE() AS DATE), CAST(GETDATE() AS TIME))";
+if (sqlsrv_has_rows($stmtCheckView) === false) {
+    $sqlInsertView = "INSERT INTO [View] (userId, videoId, durasi, tglView, waktuView)
+                      VALUES (?, ?, 0, CONVERT(date, GETDATE()), CONVERT(time, GETDATE()))";
     $paramsInsertView = array($userId, $videoId);
-    $stmtInsertView = sqlsrv_query($conn, $sqlInsertView, $paramsInsertView);
-    
-    if ($stmtInsertView === false) {
-        die(print_r(sqlsrv_errors(), true));
-    }
+    sqlsrv_query($conn, $sqlInsertView, $paramsInsertView);
 }
 
 // Handle comment submission
@@ -404,73 +382,29 @@ if ($stmtCheckSub && sqlsrv_has_rows($stmtCheckSub)) {
             border-bottom: 1px solid #ddd;
         }
 
+        /* Comment header */
         .comment_header {
-        display: flex;
-        flex-direction: column;    /* stack username above date */
-        align-items: flex-start;   /* left‑align them */
-        margin-bottom: 8px;        /* space down to the comment text */
+            display: flex;
+            align-items: center;
+            margin-bottom: 5px;
+        }
+
+        .comment_username {
+            font-weight: bold;
+            margin-right: 10px;
         }
 
         .comment_date {
-        color: #777;
-        font-size: 0.9em;
+            color: #777;
+            font-size: 0.9em;
         }
 
-        .comment_header span {
-        position: static;
-        top: auto;
-        right: auto;
-        display: block;    
-        font: inherit;    
-        margin: 0 0 4px 0;  
+        /* Comment content */
+        .comment_content {
+            display: block;
+            margin-top: 5px;
+            padding-left: 5px;
         }
-
-        .comment_header .comment_username,
-        .comment_header .comment_date {
-        position: static !important;      /* back in the flow */
-        display: block !important;        /* each on its own line */
-        width: auto !important;           /* shrink‑to‑fit text */
-        overflow: visible !important;     /* no clipping */
-        background: transparent !important;
-        border: none !important;
-        font: inherit !important;         /* match your content font */
-        margin: 0 0 4px 0 !important;     /* spacing under username */
-        }
-                .comment_username { 
-        margin-bottom: 4px; 
-        }
-
-        .comment_header span {
-        /* restore normal document flow */
-        position: static !important;
-        top: auto        !important;
-        right: auto      !important;
-
-        /* stack each on its own line */
-        display: block;          
-
-        /* remove that black bar */
-        background: none !important;
-        background-color: transparent !important;
-        border: none !important;
-        outline: none !important;
-
-        /* inherit your comment text font */
-        font: inherit;
-        margin: 0 0 4px 0;
-        }
-
-        .comment,
-        .comment_container {
-        overflow: visible;  /* allow the header to fully show */
-        }
-
-        .comment_header {
-        width: auto;       /* let it size to its contents */
-        display: block;    /* normal flow */
-        overflow: visible; /* no clipping */
-        }
-
     </style>
 </head>
 <body>
@@ -489,41 +423,7 @@ if ($stmtCheckSub && sqlsrv_has_rows($stmtCheckSub)) {
 
             <ol>
                 <li>
-                    <a href="home.php"><i class="fas fa-home"></i>Home</a>
-                </li>
-                <?php if($baId === null):?>
-                    <li>
-                        <a href="subscription.php"><i class="fas fa-star"></i>Subscription</a>
-                    </li>
-                    <li>
-                        <a href="notification.php"><i class="fas fa-bell"></i>Notification</a>
-                    </li>
-                    <li>
-                        <a href="collaboration.php"><i class="fas fa-handshake"></i>Collaboration</a>
-                    </li>
-                <?php endif; ?>
-                
-                <?php if (!empty($userChannels)): ?>
-                    <!-- CHANNEL USER - ONLY SHOW IF CHANNELS EXIST -->
-                    <?php foreach ($userChannels as $ch): ?>
-                    <li>
-                        <a href="profile.php?chnlId=<?= $ch['chnlId'] ?>">
-                            <?php if (!empty($ch['pfp'])): ?>
-                                <img src="<?= htmlspecialchars($ch['pfp']) ?>" 
-                                    alt="Profile" 
-                                    class="channel_pfp"
-                                    onerror="this.src='default_pfp.jpg'">
-                            <?php else: ?>
-                                <i class="fas fa-user-circle"></i>
-                            <?php endif; ?>
-                            <?= htmlspecialchars($ch['nama']) ?>
-                        </a>
-                    </li>
-                    <?php endforeach; ?>
-                <?php endif; ?>
-                
-                <li>
-                    <a href="addChannel.php"><i class="fas fa-users"></i>Add Channel</a>
+                    <a href="homeVisitor.php"><i class="fas fa-home"></i>Home</a>
                 </li>
             </ol>
         </div>
@@ -534,13 +434,7 @@ if ($stmtCheckSub && sqlsrv_has_rows($stmtCheckSub)) {
                 <div class="profile_hover_container">
                     <i class="fas fa-user-circle account_icon"></i>
                     <div class="logout_dropdown">
-                        <?php if ($baId === null): ?>
-                            <a href="loginBrand.php" class="switch_btn">Ke Brand</a>
-                            <a href="../Index/login.php" class="logout_btn">Logout</a>
-                        <?php else: ?>
-                            <a href="login.php" class="switch_btn">Ke Personal</a>
-                            <a href="../Index/loginBrand.php" class="logout_btn">Logout</a>
-                        <?php endif; ?>
+                        <a href="../Index/registration.php" class="logout_btn">Register</a>
                     </div>
                 </div>
             </div>
@@ -558,20 +452,6 @@ if ($stmtCheckSub && sqlsrv_has_rows($stmtCheckSub)) {
                 <div class="video_info">
                     <h2 class="video_title"><?= htmlspecialchars($video['judul']) ?></h2>
                     <div class="video_stats">
-                        <div class="video_actions">
-                            <form method="POST" action="videoDetail.php?videoId=<?= $videoId ?>">
-                                <input type="hidden" name="reaction" value="<?= $userReaction === 'like' ? 'remove' : 'like' ?>">
-                                <button type="submit" class="like_btn <?= $userReaction === 'like' ? 'active' : '' ?>">
-                                    👍 <?= number_format($likeCount) ?>
-                                </button>
-                            </form>
-                            <form method="POST" action="videoDetail.php?videoId=<?= $videoId ?>">
-                                <input type="hidden" name="reaction" value="<?= $userReaction === 'dislike' ? 'remove' : 'dislike' ?>">
-                                <button type="submit" class="dislike_btn <?= $userReaction === 'dislike' ? 'active' : '' ?>">
-                                    👎 <?= number_format($dislikeCount) ?>
-                                </button>
-                            </form>
-                        </div>
                     </div>
                     <p class="video_description"><?= htmlspecialchars($video['desc']) ?></p>
                     
@@ -591,32 +471,12 @@ if ($stmtCheckSub && sqlsrv_has_rows($stmtCheckSub)) {
                         <div class="channel_details">
                             <div class="channel_name"><?= htmlspecialchars($video['channel_name']) ?></div>
                         </div>
-                        
-                        <form method="POST" action="videoDetail.php?videoId=<?= $videoId ?>">
-                            <input type="hidden" name="channel_id" value="<?= $video['chnlId'] ?>">
-                            <?php if ($isSubscribed): ?>
-                                <input type="hidden" name="subscribe_action" value="unsubscribe">
-                                <button type="submit" class="subscribe_btn subscribed">Unsubscribe</button>
-                            <?php else: ?>
-                                <input type="hidden" name="subscribe_action" value="subscribe">
-                                <button type="submit" class="subscribe_btn unsubscribed">Subscribe</button>
-                            <?php endif; ?>
-                        </form>
                     </div>
                 </div>
 
                 <!-- Comment Section -->
                 <div class="comments_section">
                     <h3>Comments (<?= count($comments) ?>)</h3>
-                    <form method="POST" action="videoDetail.php?videoId=<?= $videoId ?>">
-                        <textarea 
-                            name="comment" 
-                            class="comment_input" 
-                            placeholder="Add a public comment..."
-                            required
-                        ></textarea>
-                        <button type="submit" class="comment_submit">Comment</button>
-                    </form>
 
                     <div class="comment_list">
                         <?php foreach ($comments as $comment): ?>

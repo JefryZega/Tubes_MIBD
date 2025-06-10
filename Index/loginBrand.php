@@ -4,14 +4,14 @@ require_once 'koneksiDB.php'; // Pastikan menggunakan file koneksi yang benar
 
 // Proses login jika form disubmit
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
-    $email = trim($_POST['email']);
+    $username = trim($_POST['username']);
     $password = $_POST['password'];
 
-    // Query untuk mencari user berdasarkan email
-    $sql = "SELECT userId, username, email, pass 
-            FROM [User] 
-            WHERE email = ?";
-    $params = [$email];
+    // Query untuk mencari user berdasarkan username
+    $sql = "SELECT baId, username, userId, pass 
+            FROM BrandAcc
+            WHERE username = ?";
+    $params = [$username];
     $stmt = sqlsrv_query($conn, $sql, $params);
 
     if ($stmt === false) {
@@ -25,7 +25,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
         // Verifikasi password
         if ($password === $row['pass']) {
             $_SESSION['userId'] = $row['userId'];
-            $_SESSION['baId'] = null;
+            $_SESSION['baId'] = $row['baId'];
             $_SESSION['uname'] = $row['username'];
             header("Location: home.php");
             exit;
@@ -34,8 +34,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
 
     // Jika login gagal
     echo "<script>
-            alert('Login gagal! Email atau password salah');
-            window.location.href='login.php';
+            alert('Login gagal! username atau password salah');
+            window.location.href='loginBrand.php';
           </script>";
     exit;
 }
@@ -56,12 +56,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
         <h1>Welcome</h1>
         <form method="POST" action="" class="login_form">
           <div class="input_form">
-            <input type="email" name="email" placeholder="Enter Email" required />
+            <input type="username" name="username" placeholder="Enter Username" required />
             <input type="password" name="password" placeholder="Enter Password" required />
           </div>
 
           <div class="button_row">
-            <button type="button" class="signup" onclick="location.href='registration.php'">Sign Up</button>
+            <button type="button" class="signup" onclick="location.href='registrationBrand.php'">Sign Up</button>
             <button type="submit" class="submit" name="login">Login</button>
           </div>
         </form>

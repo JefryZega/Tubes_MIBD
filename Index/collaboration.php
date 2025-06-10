@@ -12,6 +12,27 @@ if (!$userId) {
     exit();
 }
 
+// Store consistent session variable
+$_SESSION['userId'] = $userId;
+
+// Get user collaborations
+$sqlCollaborations = "SELECT 
+                        c.chnlId, 
+                        c.nama AS channel_name,
+                        c.pfp AS channel_pfp,
+                        ar.role
+                    FROM AdaRole ar
+                    JOIN Channel c ON ar.chnlId = c.chnlId
+                    WHERE ar.userId = ?";
+$paramsCollaborations = array($userId);
+$stmtCollaborations = sqlsrv_query($conn, $sqlCollaborations, $paramsCollaborations);
+
+$collaborations = [];
+if ($stmtCollaborations !== false) {
+    while ($row = sqlsrv_fetch_array($stmtCollaborations, SQLSRV_FETCH_ASSOC)) {
+        $collaborations[] = $row;
+    }
+}
 
 // Get user channels
 $userChannels = [];
@@ -36,35 +57,7 @@ if($baId !== null){
         }
     }
 }
-
-
-// Fetch videos with view counts
-$sql = "SELECT 
-            v.videoId, 
-            v.judul, 
-            v.thumbnail, 
-            v.tglUpld,
-            c.nama AS channel_name,
-            c.chnlId AS channel_id,
-            COUNT(vw.videoId) AS view_count
-        FROM Video v
-        JOIN Channel c ON v.chnlId = c.chnlId
-        LEFT JOIN [View] vw ON v.videoId = vw.videoId
-        WHERE v.status = 'up'
-        GROUP BY v.videoId, v.judul, v.thumbnail, v.tglUpld, c.nama, c.chnlId
-        ORDER BY v.tglUpld DESC";
-$stmt = sqlsrv_query($conn, $sql);
-
-if ($stmt === false) {
-    die(print_r(sqlsrv_errors(), true));
-}
-
-$videos = [];
-while ($row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC)) {
-    $videos[] = $row;
-}
 ?>
-
 
 <!DOCTYPE html>
 <html lang="en">
@@ -76,6 +69,136 @@ while ($row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC)) {
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.12.1/css/all.min.css" />
     <style>
         /* Video grid styles */
+.notification_content {
+            padding: 30px;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        
+        .section_title {
+            font-size: 24px;
+            font-weight: 600;
+            margin-bottom: 25px;
+            color: #333;
+            border-bottom: 2px solid #e63946;
+            padding-bottom: 10px;
+        }
+        
+        .invitation_list {
+            display: flex;
+            flex-direction: column;
+            gap: 25px;
+        }
+        
+        .invitation_card {
+            display: flex;
+            align-items: center;
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 3px 15px rgba(0, 0, 0, 0.08);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        
+        .invitation_card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.12);
+        }
+        
+        .channel_info {
+            display: flex;
+            align-items: center;
+            flex: 1;
+        }
+        
+        .channel_pfp_img {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            object-fit: cover;
+            margin-right: 20px;
+            border: 2px solid #e63946;
+        }
+        
+        .channel_text {
+            flex: 1;
+        }
+        
+        .channel_name {
+            font-weight: 600;
+            font-size: 18px;
+            color: #333;
+            margin-bottom: 5px;
+        }
+        
+        .invitation_text {
+            color: #666;
+            font-size: 15px;
+        }
+        
+        .role_badge {
+            background: #e63946;
+            color: white;
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 500;
+            display: inline-block;
+            margin-left: 8px;
+        }
+        
+        .invitation_actions {
+            display: flex;
+            gap: 12px;
+        }
+        
+        .action_btn {
+            padding: 10px 20px;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+            transition: all 0.2s ease;
+        }
+        
+        .accept_btn {
+            background: #4CAF50;
+            color: white;
+        }
+        
+        .accept_btn:hover {
+            background: #388E3C;
+        }
+        
+        .reject_btn {
+            background: #f44336;
+            color: white;
+        }
+        
+        .reject_btn:hover {
+            background: #d32f2f;
+        }
+        
+        .no_invitations {
+            text-align: center;
+            padding: 40px 20px;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 3px 15px rgba(0, 0, 0, 0.08);
+        }
+        
+        .no_invitations_icon {
+            font-size: 60px;
+            color: #e0e0e0;
+            margin-bottom: 20px;
+        }
+        
+        .no_invitations_text {
+            font-size: 18px;
+            color: #666;
+            margin-bottom: 30px;
+        }
+
         .video_grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
@@ -272,7 +395,6 @@ while ($row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC)) {
                 <li>
                     <a href="home.php"><i class="fas fa-home"></i>Home</a>
                 </li>
-                <!-- TAMBAHAN 3 BUTTON -->
                 <?php if($baId === null):?>
                     <li>
                         <a href="subscription.php"><i class="fas fa-star"></i>Subscription</a>
@@ -284,7 +406,7 @@ while ($row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC)) {
                         <a href="collaboration.php"><i class="fas fa-handshake"></i>Collaboration</a>
                     </li>
                 <?php endif; ?>
-                                
+                
                 <!-- CHANNEL USER - ONLY SHOW IF CHANNELS EXIST -->
                 <?php foreach ($userChannels as $ch): ?>
                 <li>
@@ -313,7 +435,6 @@ while ($row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC)) {
         <div class="right_side">
             <!-- Search dan Profil -->
             <div class="top_bar">
-                <input type="text" placeholder="Search..." class="search_input" />
                 <div class="profile_hover_container">
                     <i class="fas fa-user-circle account_icon"></i>
                     <!-- Kotak logout yang muncul saat hover -->
@@ -329,45 +450,44 @@ while ($row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC)) {
                 </div>
             </div>
 
-            <div class="video_grid">
-                <?php if (count($videos) > 0): ?>
-                    <?php foreach ($videos as $video): ?>
-                        <div class="video_card">
-                            <a href="videoDetail.php?videoId=<?= $video['videoId'] ?>">
-                                <div class="thumbnail_container">
-                                    <img 
-                                        src="<?= htmlspecialchars($video['thumbnail']) ?>" 
-                                        alt="Video Thumbnail" 
-                                        class="thumbnail_img"
-                                        onerror="this.src='https://via.placeholder.com/300x169?text=Thumbnail+Missing'"
-                                    >
-                                </div>
-                            </a>
-                            <div class="video_info">
-                                <h3 class="video_title"><?= htmlspecialchars($video['judul']) ?></h3>
-                                <div class="channel_name">
-                                    <a href="profileFromViewer.php?chnlId=<?= $video['channel_id'] ?>">
-                                        <?= htmlspecialchars($video['channel_name']) ?>
-                                    </a>
-                                </div>
-                                <div class="video_meta">
-                                    <div class="video_views"><?= number_format($video['view_count']) ?> views</div>
-                                    <div class="upload_date">
-                                        <?= date('M d, Y', strtotime($video['tglUpld']->format('Y-m-d'))) ?>
+
+            <!-- Konten Kolaborasi -->
+        <div class="notification_content">
+            <h2 class="section_title">Kolaborasi Anda</h2>
+            
+            <?php if (count($collaborations) > 0): ?>
+                <div class="invitation_list">
+                    <?php foreach ($collaborations as $collab): ?>
+                        <div class="invitation_card">
+                            <div class="channel_info">
+                                <?php if (!empty($collab['channel_pfp'])): ?>
+                                    <img src="<?= htmlspecialchars($collab['channel_pfp']) ?>" 
+                                         alt="Channel Profile" 
+                                         class="channel_pfp_img"
+                                         onerror="this.src='default_pfp.jpg'">
+                                <?php else: ?>
+                                    <div class="channel_pfp_img" style="background: #e0e0e0; display: flex; align-items: center; justify-content: center;">
+                                        <i class="fas fa-user-circle" style="font-size: 40px; color: #888;"></i>
                                     </div>
+                                <?php endif; ?>
+                                
+                                <div class="channel_text">
+                                    <div class="channel_name"><?= htmlspecialchars($collab['channel_name']) ?></div>
+                                    <div class="invitation_text">
+                                        Mengangkat anda sebagai <em class="role_badge"><?= htmlspecialchars($collab['role']) ?></em> </div>
                                 </div>
                             </div>
                         </div>
                     <?php endforeach; ?>
-                <?php else: ?>
-                    <div class="empty_state">
-                        <div class="empty_icon">
-                            <i class="fas fa-film"></i>
-                        </div>
-                        <h2 class="empty_text">Tidak ada videos</h2>
+                </div>
+            <?php else: ?>
+                <div class="no_invitations">
+                    <div class="no_invitations_icon">
+                        <i class="fas fa-handshake"></i>
                     </div>
-                <?php endif; ?>
-            </div>
+                    <h3 class="no_invitations_text">Anda belum berkolaborasi dengan channel lain</h3>
+                </div>
+            <?php endif; ?>
         </div>
     </div>
 </body>

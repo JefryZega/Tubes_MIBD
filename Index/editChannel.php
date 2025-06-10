@@ -3,35 +3,77 @@ session_start();
 require_once 'koneksiDB.php';
 
 $userId = $_SESSION['userId'];
-$error = '';
+$chnlId = isset($_GET['chnlId']) ? $_GET['chnlId'] : null;
 $baId = isset($_SESSION['baId'])? $_SESSION['baId']: null;
+
+// Fetch current channel details
+$sqlCurrent = "SELECT * FROM Channel WHERE chnlId = ?";
+$paramsCurrent = array($chnlId, $userId);
+$stmtCurrent = sqlsrv_query($conn, $sqlCurrent, $paramsCurrent);
+$currentChannel = sqlsrv_fetch_array($stmtCurrent, SQLSRV_FETCH_ASSOC);
+
 
 // Proses form jika disubmit
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['create'])) {
-    $channelName = $_POST['channelName'];
-    $channelDesc = $_POST['channelDesc'];
-    $tipe = ($baId === null)? 'personal': 'brand';
-    
-    // Handle file uploads
-    $bannerPath = "../img/" . $_FILES['bannerUpload']['name'];
-    $pfpPath = "../img/" . $_FILES['profileUpload']['name'];
+    // Use current values as defaults
+    $channelName = $currentChannel['nama'];
+    $channelDesc = $currentChannel['desc'];
+    $bannerPath = $currentChannel['banner'];
+    $pfpPath = $currentChannel['pfp'];
 
-    // Jika tidak ada error, simpan ke database
-    if (empty($error)) {
-        $sql = "INSERT INTO Channel (banner, nama, [desc], pfp, tipe, baId, userId) 
-                VALUES (?, ?, ?, ?, ?, ?, ?)";
-        $params = array($bannerPath, $channelName, $channelDesc, $pfpPath, $tipe, $baId, $userId);
-        $stmt = sqlsrv_query($conn, $sql, $params);
+    // Update only if new values are provided
+    if (!empty($_POST['channelName'])) {
+        $channelName = $_POST['channelName'];
+    }
+    
+    if (!empty($_POST['channelDesc'])) {
+        $channelDesc = $_POST['channelDesc'];
+    }
+
+    // Handle banner upload
+    if (isset($_FILES['bannerUpload']) && $_FILES['bannerUpload']['error'] == UPLOAD_ERR_OK) {
+        $bannerTmp = $_FILES['bannerUpload']['tmp_name'];
+        $bannerName = uniqid() . '_' . basename($_FILES['bannerUpload']['name']);
+        $bannerTarget = "uploads/banners/" . $bannerName;
         
-        if ($stmt) {
-            header("Location: home.php");
-            exit();
-        } else {
-            $error = "Gagal membuat channel: " . print_r(sqlsrv_errors(), true);
+        if (!is_dir('uploads/banners')) {
+            mkdir('uploads/banners', 0777, true);
+        }
+        
+        if (move_uploaded_file($bannerTmp, $bannerTarget)) {
+            $bannerPath = $bannerTarget;
         }
     }
-}
 
+    // Handle profile picture upload
+    if (isset($_FILES['profileUpload']) && $_FILES['profileUpload']['error'] == UPLOAD_ERR_OK) {
+        $pfpTmp = $_FILES['profileUpload']['tmp_name'];
+        $pfpName = uniqid() . '_' . basename($_FILES['profileUpload']['name']);
+        $pfpTarget = "uploads/profiles/" . $pfpName;
+        
+        if (!is_dir('uploads/profiles')) {
+            mkdir('uploads/profiles', 0777, true);
+        }
+        
+        if (move_uploaded_file($pfpTmp, $pfpTarget)) {
+            $pfpPath = $pfpTarget;
+        }
+    }
+
+    // Update channel
+    $sql = "UPDATE Channel 
+            SET banner = ?, nama = ?, [desc] = ?, pfp = ? 
+            WHERE chnlId = ? AND userId = ?";
+    $params = array($bannerPath, $channelName, $channelDesc, $pfpPath, $chnlId, $userId);
+    $stmt = sqlsrv_query($conn, $sql, $params);
+    
+    if ($stmt) {
+        header("Location: profile.php?chnlId=$chnlId");
+        exit();
+    } else {
+        $error = "Gagal mengupdate channel: " . print_r(sqlsrv_errors(), true);
+    }
+}
 // Get user channels
 $userChannels = [];
 if($baId !== null){
@@ -55,6 +97,8 @@ if($baId !== null){
         }
     }
 }
+
+
 ?>
 
 <!DOCTYPE html>
@@ -305,7 +349,6 @@ if($baId !== null){
                 <li>
                     <a href="home.php"><i class="fas fa-home"></i>Home</a>
                 </li>
-                <!-- TAMBAHAN 3 BUTTON -->
                 <?php if($baId === null):?>
                     <li>
                         <a href="subscription.php"><i class="fas fa-star"></i>Subscription</a>
@@ -343,7 +386,7 @@ if($baId !== null){
 
         <!-- Konten Kanan -->
         <div class="right_side">
-            <h2 class="page_title">Buat Channel Anda</h2>
+            <h2 class="page_title">Edit Channel Kamu</h2>
 
             <?php if (!empty($error)): ?>
                 <div class="error"><?= $error ?></div>
@@ -351,20 +394,20 @@ if($baId !== null){
             
             <form method="POST" enctype="multipart/form-data" class="channel_form_box">
                 <label class="upload_label" for="bannerUpload">Upload Banner</label>
-                <input type="file" name="bannerUpload" id="bannerUpload" accept="image/*" required>
+                <input type="file" name="bannerUpload" id="bannerUpload" accept="image/*">
                 
                 <label class="upload_label" for="profileUpload">Upload Profile Photo</label>
-                <input type="file" name="profileUpload" id="profileUpload" accept="image/*" required>
+                <input type="file" name="profileUpload" id="profileUpload" accept="image/*" >
                 
-                <label class="channel_name_label" for="channelName">Name Channel</label>
+                <label class="channel_name_label" for="channelName">Nama Channel Baru</label>
                 <input type="text" name="channelName" id="channelName" 
-                       placeholder="Masukan nama channel" required>
+                       placeholder="Masukan nama channel" >
 
-                <label class="channel_desc_label" for="channelDesc">Deskripsi Channel</label>
+                <label class="channel_desc_label" for="channelDesc">Deskripsi Channel Baru</label>
                 <input type="text" name="channelDesc" id="channelDesc" 
-                       placeholder="Masukan deskripsi channel" required>
+                       placeholder="Masukan deskripsi channel" >
                 
-                <button type="submit" name="create" class="create_btn">Buat</button>
+                <button type="submit" name="create" class="create_btn">Ubah</button>
             </form>
         </div>
     </div>

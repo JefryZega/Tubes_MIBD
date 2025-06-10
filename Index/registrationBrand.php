@@ -2,21 +2,22 @@
 session_start();
 require_once 'koneksiDB.php';
 
+$userId = $_SESSION['userId'];
+
 // Handle form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register'])) {
     $username = trim($_POST['username']);
-    $email    = trim($_POST['email']);
     $password = $_POST['password'];
 
     // Validate inputs
-    if (empty($username) || empty($email) || empty($password)) {
-        $error = "Isi semua feild!";
+    if (empty($username) || empty($password)) {
+        $error = "All fields are required!";
     } elseif (strlen($username) > 15) {
-        $error = "Username harus dibawah 15 huruf";
+        $error = "Username must be 15 characters or less!";
     } else {
-        // Check if email exists
-        $sqlCheck = "SELECT email FROM [User] WHERE email = ?";
-        $paramsCheck = [$email];
+        // Check if username exists
+        $sqlCheck = "SELECT username FROM BrandAcc WHERE username = ?";
+        $paramsCheck = [$username];
         $stmtCheck = sqlsrv_query($conn, $sqlCheck, $paramsCheck);
         
         if ($stmtCheck === false) {
@@ -24,18 +25,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register'])) {
         }
         
         if (sqlsrv_has_rows($stmtCheck)) {
-            $error = "Email sudah ada";
+            $error = "Username sudah diambil!";
         } else {
-            // Insert new user
-            $sqlInsert = "INSERT INTO [User] (username, email, pass) VALUES (?, ?, ?)";
-            $paramsInsert = [$username, $email, $password];
+            $sqlInsert = "INSERT INTO BrandAcc (username, userId, pass) VALUES (?, ?, ?)";
+            $paramsInsert = [$username, $userId, $password];
             $stmtInsert = sqlsrv_query($conn, $sqlInsert, $paramsInsert);
 
             if ($stmtInsert) {
-                header('Location: login.php');
+                header('Location: loginBrand.php');
                 exit;
             } else {
-                $error = "Registration failed: " . print_r(sqlsrv_errors(), true);
+                $error = "Registration gagal: " . print_r(sqlsrv_errors(), true);
             }
         }
     }
@@ -72,8 +72,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register'])) {
             <input type="text" name="username" placeholder="Enter Username" 
                    value="<?= isset($_POST['username']) ? htmlspecialchars($_POST['username']) : '' ?>" 
                    maxlength="15" required>
-            <input type="email" name="email" placeholder="Enter Email"
-                   value="<?= isset($_POST['email']) ? htmlspecialchars($_POST['email']) : '' ?>" required>
             <input type="password" name="password" placeholder="Enter Password" required>
           </div>
 
@@ -82,11 +80,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register'])) {
           </div>
 
           <div class="login_link">
-            Already have an account? <a href="login.php">Login</a>
-          </div>
-
-          <div class="visitor_link">
-            <a href="homeVisitor.php">Masuk sebagai visitor </a>
+            Already have an account? <a href="loginBrand.php">Login</a>
           </div>
         </form>
       </div>

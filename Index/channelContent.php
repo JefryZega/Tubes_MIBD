@@ -7,6 +7,7 @@ if (!$userId) {
     header("Location: ../Index/login.php");
     exit();
 }
+$baId = isset($_SESSION['baId'])? $_SESSION['baId']: null;
 
 // Get channel ID from URL
 $chnlId = $_GET['chnlId'] ?? null;
@@ -18,16 +19,32 @@ $params = array($chnlId);
 $stmt = sqlsrv_query($conn, $sqlChannel, $params);
 $channel = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC);
 
-// Fetch user's channels for sidebar
-$sqlChannels = "SELECT chnlId, nama, pfp FROM Channel WHERE userId = ?";
-$stmtChannels = sqlsrv_query($conn, $sqlChannels, array($userId));
+// Get user channels
 $userChannels = [];
-while ($row = sqlsrv_fetch_array($stmtChannels, SQLSRV_FETCH_ASSOC)) {
-    $userChannels[] = $row;
-}
+if($baId !== null){
+    $sqlChannels = "SELECT chnlId, nama, pfp FROM Channel WHERE baId = ?";
+    $paramsChannels = array($baId);
+    $stmtChannels = sqlsrv_query($conn, $sqlChannels, $paramsChannels);
 
+    if ($stmtChannels !== false) {
+        while ($row = sqlsrv_fetch_array($stmtChannels, SQLSRV_FETCH_ASSOC)) {
+            $userChannels[] = $row;
+        }
+    }
+}else{
+    $sqlChannels = "SELECT chnlId, nama, pfp FROM Channel WHERE userId = ? AND tipe = 'personal'";
+    $paramsChannels = array($userId);
+    $stmtChannels = sqlsrv_query($conn, $sqlChannels, $paramsChannels);
+
+    if ($stmtChannels !== false) {
+        while ($row = sqlsrv_fetch_array($stmtChannels, SQLSRV_FETCH_ASSOC)) {
+            $userChannels[] = $row;
+        }
+    }
+}
 // Fetch channel videos with stats
 $sqlVideos = "SELECT 
+                v.userId,
                 v.videoId,
                 v.judul,
                 v.thumbnail,
@@ -41,6 +58,21 @@ $stmtVideos = sqlsrv_query($conn, $sqlVideos, array($chnlId));
 $videos = [];
 while ($row = sqlsrv_fetch_array($stmtVideos, SQLSRV_FETCH_ASSOC)) {
     $videos[] = $row;
+}
+
+//ambil role
+$role = null;
+$a = "SELECT [role] FROM AdaRole WHERE chnlId = ? AND userId = ?";
+$params = [ $chnlId, $userId ];
+$stmt = sqlsrv_query($conn, $a, $params);
+
+if ($stmt === false) {
+    die(print_r(sqlsrv_errors(), true));
+}
+
+if (sqlsrv_has_rows($stmt)) {
+    $row  = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC);
+    $role = $row['role'];  
 }
 ?>
 
@@ -81,25 +113,31 @@ while ($row = sqlsrv_fetch_array($stmtVideos, SQLSRV_FETCH_ASSOC)) {
                 <li>
                     <a href="home.php"><i class="fas fa-home"></i>Home</a>
                 </li>
-                <li>
-                    <a href="subs.php"><i class="fas fa-star"></i>Subscription</a>
-                </li>
-                <li>
-                    <a href="notification.php"><i class="fas fa-bell"></i>Notification</a>
-                </li>
-                <li>
-                    <a href="collaboration.php"><i class="fas fa-handshake"></i>Collaboration</a>
-                </li>
+                <?php if($baId === null):?>
+                    <li>
+                        <a href="subscription.php"><i class="fas fa-star"></i>Subscription</a>
+                    </li>
+                    <li>
+                        <a href="notification.php"><i class="fas fa-bell"></i>Notification</a>
+                    </li>
+                    <li>
+                        <a href="collaboration.php"><i class="fas fa-handshake"></i>Collaboration</a>
+                    </li>
+                <?php endif; ?>
                 
+                <!-- CHANNEL USER - ONLY SHOW IF CHANNELS EXIST -->
                 <?php foreach ($userChannels as $ch): ?>
                 <li>
-                    <a href="channelContent.php?chnlId=<?= $ch['chnlId'] ?>">
-                        <?php if ($ch['pfp']): ?>
-                            <img src="<?= $ch['pfp'] ?>" alt="Profile" class="channel_pfp">
+                    <a href="profile.php?chnlId=<?= $ch['chnlId'] ?>">
+                        <?php if (!empty($ch['pfp'])): ?>
+                            <img src="<?= htmlspecialchars($ch['pfp']) ?>" 
+                                alt="Profile" 
+                                class="channel_pfp"
+                                onerror="this.src='default_pfp.jpg'">
                         <?php else: ?>
                             <i class="fas fa-user-circle"></i>
                         <?php endif; ?>
-                        <?= $ch['nama'] ?>
+                        <?= htmlspecialchars($ch['nama']) ?>
                     </a>
                 </li>
                 <?php endforeach; ?>
@@ -117,21 +155,24 @@ while ($row = sqlsrv_fetch_array($stmtVideos, SQLSRV_FETCH_ASSOC)) {
                 <button class="tab_btn active" onclick="location.href='channelContent.php?chnlId=<?= $chnlId ?>'">
                     Videos
                 </button>
-                <button class="tab_btn" onclick="location.href='channelContentUpload.php?chnlId=<?= $chnlId ?>'">
-                    Upload
-                </button>
-                <button class="tab_btn" onclick="location.href='channelContentDelete.php?chnlId=<?= $chnlId ?>'">
-                    Delete
-                </button>
+                <?php if($role !== 'Sub Editor'): ?>
+                    <button class="tab_btn" onclick="location.href='channelContentUpload.php?chnlId=<?= $chnlId ?>'">
+                        Upload
+                    </button>
+                <?php endif; ?>
+                <?php if($role !== 'Sub Editor'): ?>
+                    <button class="tab_btn" onclick="location.href='channelContentDelete.php?chnlId=<?= $chnlId ?>'">
+                        Delete
+                    </button>
+                <?php endif; ?>
             </div>
 
             <div class="tab_content">
                 <div class="video_table">
                     <div class="video_header">
                         <div class="video_col">Video</div>
-                        <div class="video_col">Views</div>
-                        <div class="video_col">Likes</div>
-                        <div class="video_col">Dislikes</div>
+                        <div class="video_col"></div>
+
                     </div>
 
                     <?php if (count($videos) > 0): ?>
@@ -149,9 +190,15 @@ while ($row = sqlsrv_fetch_array($stmtVideos, SQLSRV_FETCH_ASSOC)) {
                                     </p>
                                 </div>
                             </div>
-                            <div class="video_col"><?= number_format($video['views']) ?></div>
-                            <div class="video_col"><?= number_format($video['likes']) ?></div>
-                            <div class="video_col"><?= number_format($video['dislikes']) ?></div>
+                            <div class="video_col"></div>
+                            <div class="video_col"></div>
+                            <?php if ($role === 'Limited Editor'): ?>
+                                <?php if ($video['userId'] === $userId): ?>
+                                    <div class="video_col"><button class="tab_btn active" onclick="location.href='editVid.php?chnlId=<?= $chnlId ?>&videoId=<?= $video['videoId'] ?>'">Edit</button></div> 
+                                <?php endif; ?>
+                            <?php else: ?>
+                                <div class="video_col"><button class="tab_btn active" onclick="location.href='editVid.php?chnlId=<?= $chnlId ?>&videoId=<?= $video['videoId'] ?>'">Edit</button></div> 
+                            <?php endif; ?>
                         </div>
                         <?php endforeach; ?>
                     <?php else: ?>

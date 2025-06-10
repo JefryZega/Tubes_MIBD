@@ -18,13 +18,46 @@ $params = array($chnlId);
 $stmt = sqlsrv_query($conn, $sqlChannel, $params);
 $channel = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC);
 
-// Fetch user's channels for sidebar
-$sqlChannels = "SELECT chnlId, nama, pfp FROM Channel WHERE userId = ?";
-$stmtChannels = sqlsrv_query($conn, $sqlChannels, array($userId));
+// Get user channels
 $userChannels = [];
-while ($row = sqlsrv_fetch_array($stmtChannels, SQLSRV_FETCH_ASSOC)) {
-    $userChannels[] = $row;
+$baId = isset($_SESSION['baId'])? $_SESSION['baId']: null;
+if($baId !== null){
+    $sqlChannels = "SELECT chnlId, nama, pfp FROM Channel WHERE baId = ?";
+    $paramsChannels = array($baId);
+    $stmtChannels = sqlsrv_query($conn, $sqlChannels, $paramsChannels);
+
+    if ($stmtChannels !== false) {
+        while ($row = sqlsrv_fetch_array($stmtChannels, SQLSRV_FETCH_ASSOC)) {
+            $userChannels[] = $row;
+        }
+    }
+}else{
+    $sqlChannels = "SELECT chnlId, nama, pfp FROM Channel WHERE userId = ?";
+    $paramsChannels = array($userId);
+    $stmtChannels = sqlsrv_query($conn, $sqlChannels, $paramsChannels);
+
+    if ($stmtChannels !== false) {
+        while ($row = sqlsrv_fetch_array($stmtChannels, SQLSRV_FETCH_ASSOC)) {
+            $userChannels[] = $row;
+        }
+    }
 }
+
+$role = null;
+$a = "SELECT [role] FROM AdaRole WHERE chnlId = ? AND userId = ?";
+$params = [ $chnlId, $userId ];
+$stmt = sqlsrv_query($conn, $a, $params);
+
+if ($stmt === false) {
+    die(print_r(sqlsrv_errors(), true));
+}
+
+if (sqlsrv_has_rows($stmt)) {
+    $row  = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC);
+    $role = $row['role'];  
+}
+
+$verifySql = null;
 
 // Handle video deletion
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete'])) {
@@ -32,22 +65,41 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete'])) {
     
     if ($videoId) {
         // Verify that the video belongs to this channel
-        $verifySql = "SELECT videoId FROM Video WHERE videoId = ? AND chnlId = ?";
+        $verifySql = "SELECT userId, videoId FROM Video WHERE videoId = ? AND chnlId = ?";
         $verifyParams = array($videoId, $chnlId);
         $verifyStmt = sqlsrv_query($conn, $verifySql, $verifyParams);
         
         if (sqlsrv_has_rows($verifyStmt)) {
-            // Delete the video
-            $deleteSql = "DELETE FROM Video WHERE videoId = ?";
-            $deleteParams = array($videoId);
-            $deleteStmt = sqlsrv_query($conn, $deleteSql, $deleteParams);
+            // Start transaction
+            sqlsrv_begin_transaction($conn);
             
-            if ($deleteStmt) {
-                // Refresh page after deletion
-                header("Location: channelContentDelete.php?chnlId=$chnlId");
-                exit();
-            } else {
-                $error = "Failed to delete video: " . print_r(sqlsrv_errors(), true);
+            try {
+                // Delete from View table
+                $deleteViewSql = "DELETE FROM [View] WHERE videoId = ?";
+                sqlsrv_query($conn, $deleteViewSql, array($videoId));
+                
+                // Delete from Reaksi table
+                $deleteReaksiSql = "DELETE FROM Reaksi WHERE videoId = ?";
+                sqlsrv_query($conn, $deleteReaksiSql, array($videoId));
+                
+                // Delete from Komen table
+                $deleteKomenSql = "DELETE FROM Komen WHERE videoId = ?";
+                sqlsrv_query($conn, $deleteKomenSql, array($videoId));
+                
+                // Finally delete the video
+                $deleteVideoSql = "DELETE FROM Video WHERE videoId = ?";
+                $deleteStmt = sqlsrv_query($conn, $deleteVideoSql, array($videoId));
+                
+                if ($deleteStmt) {
+                    sqlsrv_commit($conn);
+                    header("Location: channelContentDelete.php?chnlId=$chnlId");
+                    exit();
+                } else {
+                    throw new Exception("Failed to delete video: " . print_r(sqlsrv_errors(), true));
+                }
+            } catch (Exception $e) {
+                sqlsrv_rollback($conn);
+                $error = $e->getMessage();
             }
         } else {
             $error = "Video not found or doesn't belong to this channel";
@@ -58,7 +110,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete'])) {
 }
 
 // Fetch all videos for this channel
-$sqlVideos = "SELECT videoId, judul, tglUpld, thumbnail FROM Video WHERE chnlId = ? ORDER BY tglUpld DESC";
+$sqlVideos = "SELECT videoId, judul, tglUpld, thumbnail, userId  FROM Video WHERE chnlId = ? ORDER BY tglUpld DESC";
 $videoParams = array($chnlId);
 $stmtVideos = sqlsrv_query($conn, $sqlVideos, $videoParams);
 
@@ -144,25 +196,31 @@ while ($row = sqlsrv_fetch_array($stmtVideos, SQLSRV_FETCH_ASSOC)) {
                 <li>
                     <a href="home.php"><i class="fas fa-home"></i>Home</a>
                 </li>
-                <li>
-                    <a href="subs.php"><i class="fas fa-star"></i>Subscription</a>
-                </li>
-                <li>
-                    <a href="notification.php"><i class="fas fa-bell"></i>Notification</a>
-                </li>
-                <li>
-                    <a href="collaboration.php"><i class="fas fa-handshake"></i>Collaboration</a>
-                </li>
+                <?php if($baId === null):?>
+                    <li>
+                        <a href="subscription.php"><i class="fas fa-star"></i>Subscription</a>
+                    </li>
+                    <li>
+                        <a href="notification.php"><i class="fas fa-bell"></i>Notification</a>
+                    </li>
+                    <li>
+                        <a href="collaboration.php"><i class="fas fa-handshake"></i>Collaboration</a>
+                    </li>
+                <?php endif; ?>
                 
+                <!-- CHANNEL USER - ONLY SHOW IF CHANNELS EXIST -->
                 <?php foreach ($userChannels as $ch): ?>
                 <li>
-                    <a href="channelContent.php?chnlId=<?= $ch['chnlId'] ?>">
-                        <?php if ($ch['pfp']): ?>
-                            <img src="<?= $ch['pfp'] ?>" alt="Profile" class="channel_pfp">
+                    <a href="profile.php?chnlId=<?= $ch['chnlId'] ?>">
+                        <?php if (!empty($ch['pfp'])): ?>
+                            <img src="<?= htmlspecialchars($ch['pfp']) ?>" 
+                                alt="Profile" 
+                                class="channel_pfp"
+                                onerror="this.src='default_pfp.jpg'">
                         <?php else: ?>
                             <i class="fas fa-user-circle"></i>
                         <?php endif; ?>
-                        <?= $ch['nama'] ?>
+                        <?= htmlspecialchars($ch['nama']) ?>
                     </a>
                 </li>
                 <?php endforeach; ?>
@@ -197,8 +255,7 @@ while ($row = sqlsrv_fetch_array($stmtVideos, SQLSRV_FETCH_ASSOC)) {
                 <?php if (empty($videos)): ?>
                     <div class="no-videos">
                         <i class="fas fa-film"></i>
-                        <h3>No videos found for this channel</h3>
-                        <p>Upload some videos to get started</p>
+                        <h3>Tidak ada video</h3>
                     </div>
                 <?php else: ?>
                     <div class="video_list">
@@ -220,10 +277,21 @@ while ($row = sqlsrv_fetch_array($stmtVideos, SQLSRV_FETCH_ASSOC)) {
                                     <p>Dipublikasikan: <?= $uploadDate ?></p>
                                 </div>
                             </div>
-                            <form method="POST" action="">
-                                <input type="hidden" name="videoId" value="<?= $video['videoId'] ?>">
-                                <button type="submit" name="delete" class="delete_btn">Delete</button>
-                            </form>
+                            <?php if ($role === "Limited Editor"): ?>
+                                <?php if ($video['userId'] === $userId): ?>
+                                    <form method="POST" action="">
+                                        <input type="hidden" name="videoId" value="<?= $video['videoId'] ?>">
+
+                                            <button type="submit" name="delete" class="delete_btn">Delete</button>
+
+                                    </form>
+                                <?php endif; ?>
+                            <?php else: ?>
+                                <form method="POST" action="">
+                                        <input type="hidden" name="videoId" value="<?= $video['videoId'] ?>">
+                                        <button type="submit" name="delete" class="delete_btn">Delete</button>
+                                </form>
+                            <?php endif; ?>
                         </div>
                         <?php endforeach; ?>
                     </div>
@@ -236,7 +304,7 @@ while ($row = sqlsrv_fetch_array($stmtVideos, SQLSRV_FETCH_ASSOC)) {
         // Confirmation before deleting
         document.querySelectorAll('.delete_btn').forEach(button => {
             button.addEventListener('click', function(e) {
-                if (!confirm('Are you sure you want to delete this video?')) {
+                if (!confirm('Yakin mau delete?')) {
                     e.preventDefault();
                 }
             });

@@ -7,6 +7,7 @@ if (!$userId) {
     header("Location: ../Index/login.php");
     exit();
 }
+$baId = isset($_SESSION['baId'])? $_SESSION['baId']: null;
 
 // Get channel ID from URL
 $chnlId = $_GET['chnlId'] ?? null;
@@ -18,12 +19,28 @@ $params = array($chnlId);
 $stmt = sqlsrv_query($conn, $sqlChannel, $params);
 $channel = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC);
 
-// Fetch user's channels for sidebar
-$sqlChannels = "SELECT chnlId, nama, pfp FROM Channel WHERE userId = ?";
-$stmtChannels = sqlsrv_query($conn, $sqlChannels, array($userId));
+// Get user channels
 $userChannels = [];
-while ($row = sqlsrv_fetch_array($stmtChannels, SQLSRV_FETCH_ASSOC)) {
-    $userChannels[] = $row;
+if($baId !== null){
+    $sqlChannels = "SELECT chnlId, nama, pfp FROM Channel WHERE baId = ?";
+    $paramsChannels = array($baId);
+    $stmtChannels = sqlsrv_query($conn, $sqlChannels, $paramsChannels);
+
+    if ($stmtChannels !== false) {
+        while ($row = sqlsrv_fetch_array($stmtChannels, SQLSRV_FETCH_ASSOC)) {
+            $userChannels[] = $row;
+        }
+    }
+}else{
+    $sqlChannels = "SELECT chnlId, nama, pfp FROM Channel WHERE userId = ? AND tipe = 'personal'";
+    $paramsChannels = array($userId);
+    $stmtChannels = sqlsrv_query($conn, $sqlChannels, $paramsChannels);
+
+    if ($stmtChannels !== false) {
+        while ($row = sqlsrv_fetch_array($stmtChannels, SQLSRV_FETCH_ASSOC)) {
+            $userChannels[] = $row;
+        }
+    }
 }
 
 // Process video upload
@@ -33,39 +50,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['upload'])) {
     $deskripsi = $_POST['deskripsi'];
     $tglUpld = date('Y-m-d');
     $status = 'up';
-    $durasi = 0; // Placeholder - we'll add duration extraction later
     
     // Handle video file upload
     $videoPath = '';
-    $thumbnailPath = null; // Placeholder for now
+    $thumbnailPath = "../img/" . $_FILES['image_file']['name'];
+    $sub = "../sub/". $_FILES['srt_file']['name'];
     
     if (isset($_FILES['video_file']) && $_FILES['video_file']['error'] === UPLOAD_ERR_OK) {
-        $videoTmp = $_FILES['video_file']['tmp_name'];
-        $videoName = uniqid() . '_' . basename($_FILES['video_file']['name']);
-        $videoTarget = "../Videos/" . $videoName;
-        
-        // Create directory if it doesn't exist
-        if (!is_dir('../Videos/')) {
-            mkdir('../Videos/', 0777, true);
-        }
-        
-        if (move_uploaded_file($videoTmp, $videoTarget)) {
-            $videoPath = $videoTarget;
-            
-            // Insert into database
-            $sql = "INSERT INTO Video (tglUpld, judul, [desc], durasi, status, chnlId, userId, thumbnail, subtitle, playback)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+        $videoTarget = "../Videos/" . $_FILES['video_file']['name'];
+            $sql = "INSERT INTO Video (tglUpld, judul, [desc], status, chnlId, userId, thumbnail, subtitle, playback)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
             $params = array(
                 $tglUpld,
                 $judul,
                 $deskripsi,
-                $durasi,
                 $status,
                 $chnlId,
                 $userId,
                 $thumbnailPath,
-                null, // subtitle
-                $videoPath
+                $sub,
+                $videoTarget
             );
             
             $stmt = sqlsrv_query($conn, $sql, $params);
@@ -73,14 +77,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['upload'])) {
             if ($stmt) {
                 header("Location: channelContent.php?chnlId=$chnlId");
                 exit();
-            } else {
-                $error = "Gagal menyimpan video: " . print_r(sqlsrv_errors(), true);
             }
-        } else {
-            $error = "Gagal mengupload file video";
-        }
-    } else {
-        $error = "Silakan pilih file video";
     }
 }
 ?>
@@ -132,25 +129,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['upload'])) {
                 <li>
                     <a href="home.php"><i class="fas fa-home"></i>Home</a>
                 </li>
-                <li>
-                    <a href="subs.php"><i class="fas fa-star"></i>Subscription</a>
-                </li>
-                <li>
-                    <a href="notification.php"><i class="fas fa-bell"></i>Notification</a>
-                </li>
-                <li>
-                    <a href="collaboration.php"><i class="fas fa-handshake"></i>Collaboration</a>
-                </li>
+                <?php if($baId === null):?>
+                    <li>
+                        <a href="subscription.php"><i class="fas fa-star"></i>Subscription</a>
+                    </li>
+                    <li>
+                        <a href="notification.php"><i class="fas fa-bell"></i>Notification</a>
+                    </li>
+                    <li>
+                        <a href="collaboration.php"><i class="fas fa-handshake"></i>Collaboration</a>
+                    </li>
+                <?php endif; ?>
                 
+                <!-- CHANNEL USER - ONLY SHOW IF CHANNELS EXIST -->
                 <?php foreach ($userChannels as $ch): ?>
                 <li>
-                    <a href="channelContent.php?chnlId=<?= $ch['chnlId'] ?>">
-                        <?php if ($ch['pfp']): ?>
-                            <img src="<?= $ch['pfp'] ?>" alt="Profile" class="channel_pfp">
+                    <a href="profile.php?chnlId=<?= $ch['chnlId'] ?>">
+                        <?php if (!empty($ch['pfp'])): ?>
+                            <img src="<?= htmlspecialchars($ch['pfp']) ?>" 
+                                alt="Profile" 
+                                class="channel_pfp"
+                                onerror="this.src='default_pfp.jpg'">
                         <?php else: ?>
                             <i class="fas fa-user-circle"></i>
                         <?php endif; ?>
-                        <?= $ch['nama'] ?>
+                        <?= htmlspecialchars($ch['nama']) ?>
                     </a>
                 </li>
                 <?php endforeach; ?>
@@ -191,6 +194,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['upload'])) {
 
                     <label for="video_file">Pilih File Video</label>
                     <input type="file" id="video_file" name="video_file" accept="video/*" required />
+
+                    <label for="thumbnail_file">Pilih File Thumbnail</label>
+                    <input type="file" id="image_file" name="image_file" accept="image/*" required />
+
+                    <label for="subtitle_file">Pilih File Subtitle</label>
+                    <input type="file" id="srt_file" name="srt_file" accept="srt/*" />
 
                     <button type="submit" name="upload" class="upload_btn">Upload</button>
                 </form>

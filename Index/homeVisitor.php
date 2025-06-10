@@ -2,42 +2,20 @@
 session_start();
 require_once 'koneksiDB.php';
 
-// Ensure consistent session variable naming
+
 $userId = $_SESSION['userId'];
-$baId = isset($_SESSION['baId'])? $_SESSION['baId']: null;
-
-// Redirect if not logged in
-if (!$userId) {
-    header("Location: ../Index/login.php");
-    exit();
-}
-
 
 // Get user channels
+$sqlChannels = "SELECT chnlId, nama, pfp FROM Channel WHERE userId = ?";
+$paramsChannels = array($userId);
+$stmtChannels = sqlsrv_query($conn, $sqlChannels, $paramsChannels);
+
 $userChannels = [];
-if($baId !== null){
-    $sqlChannels = "SELECT chnlId, nama, pfp FROM Channel WHERE baId = ?";
-    $paramsChannels = array($baId);
-    $stmtChannels = sqlsrv_query($conn, $sqlChannels, $paramsChannels);
-
-    if ($stmtChannels !== false) {
-        while ($row = sqlsrv_fetch_array($stmtChannels, SQLSRV_FETCH_ASSOC)) {
-            $userChannels[] = $row;
-        }
-    }
-}else{
-    $sqlChannels = "SELECT chnlId, nama, pfp FROM Channel WHERE userId = ? AND tipe = 'personal'";
-    $paramsChannels = array($userId);
-    $stmtChannels = sqlsrv_query($conn, $sqlChannels, $paramsChannels);
-
-    if ($stmtChannels !== false) {
-        while ($row = sqlsrv_fetch_array($stmtChannels, SQLSRV_FETCH_ASSOC)) {
-            $userChannels[] = $row;
-        }
+if ($stmtChannels !== false) {
+    while ($row = sqlsrv_fetch_array($stmtChannels, SQLSRV_FETCH_ASSOC)) {
+        $userChannels[] = $row;
     }
 }
-
-
 // Fetch videos with view counts
 $sql = "SELECT 
             v.videoId, 
@@ -64,7 +42,6 @@ while ($row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC)) {
     $videos[] = $row;
 }
 ?>
-
 
 <!DOCTYPE html>
 <html lang="en">
@@ -270,42 +247,9 @@ while ($row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC)) {
 
             <ol>
                 <li>
-                    <a href="home.php"><i class="fas fa-home"></i>Home</a>
+                    <a href="homeVisitor.php"><i class="fas fa-home"></i>Home</a>
                 </li>
-                <!-- TAMBAHAN 3 BUTTON -->
-                <?php if($baId === null):?>
-                    <li>
-                        <a href="subscription.php"><i class="fas fa-star"></i>Subscription</a>
-                    </li>
-                    <li>
-                        <a href="notification.php"><i class="fas fa-bell"></i>Notification</a>
-                    </li>
-                    <li>
-                        <a href="collaboration.php"><i class="fas fa-handshake"></i>Collaboration</a>
-                    </li>
-                <?php endif; ?>
-                                
-                <!-- CHANNEL USER - ONLY SHOW IF CHANNELS EXIST -->
-                <?php foreach ($userChannels as $ch): ?>
-                <li>
-                    <a href="profile.php?chnlId=<?= $ch['chnlId'] ?>">
-                        <?php if (!empty($ch['pfp'])): ?>
-                            <img src="<?= htmlspecialchars($ch['pfp']) ?>" 
-                                alt="Profile" 
-                                class="channel_pfp"
-                                onerror="this.src='default_pfp.jpg'">
-                        <?php else: ?>
-                            <i class="fas fa-user-circle"></i>
-                        <?php endif; ?>
-                        <?= htmlspecialchars($ch['nama']) ?>
-                    </a>
-                </li>
-                <?php endforeach; ?>
-                
-                <!-- ADD CHANNEL BUTTON -->
-                <li>
-                    <a href="addChannel.php"><i class="fas fa-users"></i>Add Channel</a>
-                </li>
+
             </ol>
         </div>
 
@@ -318,13 +262,7 @@ while ($row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC)) {
                     <i class="fas fa-user-circle account_icon"></i>
                     <!-- Kotak logout yang muncul saat hover -->
                     <div class="logout_dropdown">
-                        <?php if ($baId === null): ?>
-                            <a href="loginBrand.php" class="switch_btn">Ke Brand</a>
-                            <a href="../Index/login.php" class="logout_btn">Logout</a>
-                        <?php else: ?>
-                            <a href="login.php" class="switch_btn">Ke Personal</a>
-                            <a href="../Index/loginBrand.php" class="logout_btn">Logout</a>
-                        <?php endif; ?>
+                        <a href="../Index/registration.php" class="logout_btn">Register</a>
                     </div>
                 </div>
             </div>
@@ -333,7 +271,7 @@ while ($row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC)) {
                 <?php if (count($videos) > 0): ?>
                     <?php foreach ($videos as $video): ?>
                         <div class="video_card">
-                            <a href="videoDetail.php?videoId=<?= $video['videoId'] ?>">
+                            <a href="videoDetailVisitor.php?videoId=<?= $video['videoId'] ?>">
                                 <div class="thumbnail_container">
                                     <img 
                                         src="<?= htmlspecialchars($video['thumbnail']) ?>" 
@@ -345,8 +283,9 @@ while ($row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC)) {
                             </a>
                             <div class="video_info">
                                 <h3 class="video_title"><?= htmlspecialchars($video['judul']) ?></h3>
+                                <!-- CHANGED: Channel name is now a clickable link -->
                                 <div class="channel_name">
-                                    <a href="profileFromViewer.php?chnlId=<?= $video['channel_id'] ?>">
+                                    <a href="profileFromViewerVisitor.php?chnlId=<?= $video['channel_id'] ?>">
                                         <?= htmlspecialchars($video['channel_name']) ?>
                                     </a>
                                 </div>
@@ -364,7 +303,8 @@ while ($row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC)) {
                         <div class="empty_icon">
                             <i class="fas fa-film"></i>
                         </div>
-                        <h2 class="empty_text">Tidak ada videos</h2>
+                        <h2 class="empty_text">No videos available</h2>
+                        <a href="#" class="upload_btn">Upload your first video</a>
                     </div>
                 <?php endif; ?>
             </div>
